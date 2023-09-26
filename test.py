@@ -59,22 +59,14 @@ if __name__ == '__main__':
             labels = labels - 1
             labels[labels[:] <= 0] = 0
             labels = labels.to(device)
-            outputs, inputs_rec = model(inputs)
+            outputs = model(inputs)
             for i in range(labels.size(0)):
-                loss_rec = ((inputs_rec[i:i + 1, :, :] - inputs[i:i + 1, :, :]) ** 2).max(dim=-1).values.mean(dim=-1,
-                                                                                                              keepdim=True)
                 if labels[i] < (num_class - 1):
                     total += 1
-                    mse += loss_rec.item()
-                    max_mse = max(max_mse, loss_rec.item())
-                    internal_diff.append(loss_rec)
                     internal_conf.append(model.y_ori[i, labels[i]])
                     internal_2nd_conf.append(model.y_ori[i, model.y_ori[i, :] < model.y_ori[i, :].max()].max())
                 else:
                     total_extra += 1
-                    extra_cls_mse += loss_rec.item()
-                    extra_cls_min_mse = min(extra_cls_min_mse, loss_rec.item())
-                    extra_diff.append(loss_rec)
                     extra_conf.append(model.y_ori[i, :].max())
                     extra_2nd_conf.append(model.y_ori[i, model.y_ori[i, :] < model.y_ori[i, :].max()].max())
             _, predicted = torch.max(outputs.data, dim=-1)
@@ -85,9 +77,7 @@ if __name__ == '__main__':
                 class_total[i] += idx.sum()
                 class_correct[i] += comp[idx].sum()
         mse /= total
-        extra_cls_mse /= total_extra
         acc = correct / (total + total_extra) * 100
         class_acc = class_correct / class_total.clamp_min(1e-4) * 100
     print('Test performance: \tacc=%.2f \tmaxmse=%.6f \tmax_maxmse=%.6f' % (acc, mse, max_mse))
-    print('\t\tExtra class mse: \tmaxmse=%.6f \tmin_maxmse=%.6f' % (extra_cls_mse, extra_cls_min_mse))
     print('\t\tClass accuracy: \t[' + ', '.join('%.2f' % class_acc[i].item() for i in range(num_class)) + ']')
